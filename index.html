@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Migrants EDJN - Graph 2</title>
+  <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700" rel="stylesheet">
+  <link href="https://naver.github.io/billboard.js/release/latest/dist/billboard.min.css" rel="stylesheet">
+</head>
+<body>
+
+  <div id="chart"></div>
+
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <script src="https://naver.github.io/billboard.js/release/latest/dist/billboard.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/polyglot.js/2.2.2/polyglot.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/urljs/1.2.0/url.min.js"></script>
+
+  <script>
+    var phrases = {};
+
+    var currentLang = Url.queryString('lang') || 'fr';
+    var defaultLang = 'fr';
+
+    var categoryKey = 'category';
+
+    var polyglot = new Polyglot({
+      allowMissing: true,
+      phrases: {}
+    });
+
+    d3.queue()
+    .defer(d3.csv, './translations.csv', function(item) {
+
+      phrases[item[defaultLang]] = item[currentLang];
+
+      polyglot.extend(phrases);
+
+      return item;
+    })
+    .defer(d3.csv, './data.csv', function(datum) {
+
+      var processed = {};
+
+      Object.keys(datum).forEach(function(key) {
+        processed[polyglot.t(key)] = datum[key];
+      });
+
+      return processed;
+    })
+    .await(function(err, translations, data) {
+      var processed = {};
+
+      var categories = data.map(function(datum) {
+        return polyglot.t(datum[categoryKey]);
+      });
+
+      data.columns.filter(function(column) {
+        return column !== categoryKey;
+      }).forEach(function(column) {
+        processed[polyglot.t(column)] = [];
+      });
+
+      data.forEach(function(datum) {
+        var category = datum[categoryKey];
+
+        delete datum[categoryKey];
+
+        Object.keys(datum).forEach(function(key) {
+          processed[key].push(datum[key])
+
+        });
+      });
+
+      var chart = bb.generate({
+        data: {
+          json: processed,
+          type: "bar",
+          groups: [
+            Object.keys(processed)
+          ]
+        },
+        axis: {
+          x: {
+            type: "category",
+            categories: categories
+          }
+        },
+        bindto: "#chart"
+      });
+
+    });
+
+  </script>
+</body>
+</html>
